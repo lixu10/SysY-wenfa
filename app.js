@@ -391,6 +391,58 @@ const coverageRequirements = {
   StringConst: ["只含普通字符的字符串", "空字符串", "包含换行转义 \\n", "分别使用格式字符 %d、%c、%s", "printf 中格式字符的数量、顺序、类型与后续 Exp 对应"]
 };
 
+// 每个正式产生式的一句话直译，顺序与 grammar[name].productions 完全对应。
+const productionHints = {
+  CompUnit: ["整个文件：先全局声明，再普通函数，最后 main"],
+  Decl: ["声明常量", "声明变量"],
+  ConstDecl: ["const + 类型 + 一个或多个常量定义"],
+  BType: ["32 位整数类型", "8 位无符号字符类型"],
+  ConstDef: ["常量名，可带数组长度，而且必须初始化"],
+  ConstInitVal: ["用常量表达式初始化单值", "用花括号初始化数组，可以是空表", "用字符串初始化 char 数组"],
+  VarDecl: ["可选 static + 类型 + 一个或多个变量定义"],
+  VarDef: ["变量或数组，不写初值", "变量或数组，同时写初值"],
+  InitVal: ["用表达式初始化单值", "用花括号初始化数组，可以是空表", "用字符串初始化 char 数组"],
+  FuncDef: ["普通函数：返回类型、名字、可选参数、函数体"],
+  MainFuncDef: ["固定形式的程序入口 int main()"],
+  FuncType: ["无返回值函数", "返回 int 的函数", "返回 char 的函数"],
+  FuncFParams: ["一个或多个形参，用逗号隔开"],
+  FuncFParam: ["一个普通形参，或一个数组形参"],
+  FuncRParams: ["一个或多个实参，用逗号隔开"],
+  Block: ["大括号中的零个或多个声明、语句"],
+  BlockItem: ["语句块里放一条声明", "语句块里放一条可执行语句"],
+  Stmt: [
+    "给变量或数组元素赋值",
+    "一条表达式语句，或单独一个分号",
+    "嵌套一个新的大括号语句块",
+    "if 判断，else 部分可有可无",
+    "while 循环",
+    "switch 中放零个或多个 case/default",
+    "跳出最近的 while 或 switch",
+    "跳到 while 的下一轮",
+    "返回，可带返回值也可不带",
+    "格式字符串后可跟零个或多个输出值"
+  ],
+  CaseStmt: ["一个 case 标签及其后续语句", "default 标签及其后续语句"],
+  Exp: ["普通算术表达式从加减层开始"],
+  Cond: ["if、while 的条件，可包含逻辑运算"],
+  LVal: ["一个变量，或一个数组元素"],
+  PrimaryExp: ["用括号改变计算顺序", "读取变量、常量或数组元素", "直接使用数字或字符常量"],
+  Number: ["整数常量", "字符常量"],
+  UnaryExp: ["最基础的表达式", "调用函数，实参可有可无", "对表达式使用 +、- 或 !", "把 int 与 char 显式互转"],
+  UnaryOp: ["一元正号", "一元负号", "逻辑非"],
+  MulExp: ["只有一个一元表达式", "连续进行乘、除或取模"],
+  AddExp: ["只有一个乘除模表达式", "连续进行加法或减法"],
+  RelExp: ["不做大小比较", "进行 <、>、<= 或 >= 比较"],
+  EqExp: ["不做相等性比较", "进行 == 或 != 比较"],
+  LAndExp: ["只有一个相等性表达式", "用 && 连接条件，支持短路"],
+  LOrExp: ["只有一个逻辑与表达式", "用 || 连接条件，支持短路"],
+  ConstExp: ["编译时就能算出的加减表达式"],
+  Ident: ["名字以字母或下划线开始", "名字后继续接字母或下划线", "名字后继续接数字"],
+  IntConst: ["非零开头的十进制整数", "整数零"],
+  CharConst: ["单引号包围一个普通字符或转义字符"],
+  StringConst: ["双引号包围零个或多个字符串字符"]
+};
+
 const groups = [
   { label: "程序骨架", nodes: ["CompUnit", "MainFuncDef"] },
   { label: "声明与初始化", nodes: ["Decl", "ConstDecl", "BType", "ConstDef", "ConstInitVal", "VarDecl", "VarDef", "InitVal"] },
@@ -410,7 +462,7 @@ const colors = {
 };
 
 const levelLabels = { C: "基础级", B: "进阶级", A: "短路级" };
-const progressStorageKey = "sysy-grammar-coverage-progress-v2";
+const progressStorageKey = "sysy-grammar-coverage-progress-v3";
 let current = location.hash.slice(1) in grammar ? location.hash.slice(1) : "CompUnit";
 let trail = [current];
 let activeLevel = "ALL";
@@ -438,7 +490,6 @@ const els = {
   example: document.querySelector("#codeExample"),
   mustCover: document.querySelector("#mustCover"),
   constraints: document.querySelector("#constraints"),
-  coverage: document.querySelector("#coverage"),
   sidebar: document.querySelector("#sidebar"),
   mobileNav: document.querySelector("#mobileNav"),
   levelFilter: document.querySelector("#levelFilter"),
@@ -491,6 +542,20 @@ function renderProgress() {
   els.currentProgress.textContent = currentDone + " / " + coverageRequirements[current].length + " 已完成";
 }
 
+function suggestedTest(name, text, index) {
+  const lower = (name + " " + text).toLowerCase();
+
+  if (/mainfuncdef|唯一的 main|main 位于/.test(lower)) return "testfile1-6";
+  if (grammar[name].level === "A" || /短路|&&|\|\|/.test(text)) return "testfile5-6";
+  if (/printf 只有 StringConst/.test(text)) return "testfile1";
+  if (/数组|一维|\[\]|ident\[exp\]/i.test(text)) return "testfile3";
+  if (/char|stringconst|switch|case|default|%c|%s|ascii|显式类型转换/i.test(lower)) return "testfile4";
+  if (grammar[name].level === "B") return "testfile3-4";
+  if (/static|至少 3|多个|多位|后续包含/.test(text)) return "testfile2";
+  if (/完全不出现|空语句|空表达式|空语句块|无形参|省略|不带 else|无初值|不出现/.test(text)) return "testfile1";
+  return index % 2 === 0 ? "testfile1" : "testfile2";
+}
+
 function tokenise(text) {
   const names = Object.keys(grammar).sort(function (a, b) { return b.length - a.length; });
   const pattern = new RegExp("(" + names.join("|") + "|'[^']*'|\\[|\\]|\\{|\\}|\\||Ident)", "g");
@@ -507,7 +572,51 @@ function childNames(itemName) {
   return found;
 }
 
-function renderProduction(name, production) {
+function updateGrammarTokenCompletion(button, name) {
+  const complete = completedFor(name) === coverageRequirements[name].length;
+  button.classList.toggle("completed", complete);
+  let badge = button.querySelector(".token-check");
+
+  if (complete && !badge) {
+    badge = document.createElement("span");
+    badge.className = "token-check";
+    badge.textContent = "✓";
+    badge.setAttribute("aria-hidden", "true");
+    button.append(badge);
+  } else if (!complete && badge) {
+    badge.remove();
+  }
+}
+
+function refreshGrammarTokenCompletion() {
+  document.querySelectorAll(".grammar-token[data-node]").forEach(function (button) {
+    updateGrammarTokenCompletion(button, button.dataset.node);
+  });
+}
+
+function highestProductionLevel(name, production) {
+  const rank = { C: 0, B: 1, A: 2 };
+  const levels = [grammar[name].level];
+
+  tokenise(production).forEach(function (token) {
+    if (grammar[token]) levels.push(grammar[token].level);
+  });
+
+  if (
+    /'char'|CharConst|StringConst|CaseStmt|'switch'/.test(production) ||
+    production.includes("'['") ||
+    ((name === "ConstInitVal" || name === "InitVal") && production.includes("'{'"))
+  ) {
+    levels.push("B");
+  }
+  if (/LAndExp|LOrExp|'&&'|'\|\|'/.test(production)) levels.push("A");
+
+  return levels.reduce(function (highest, level) {
+    return rank[level] > rank[highest] ? level : highest;
+  }, "C");
+}
+
+function renderProduction(name, production, index) {
   const row = document.createElement("div");
   row.className = "production-row";
 
@@ -519,6 +628,18 @@ function renderProduction(name, production) {
   arrow.textContent = "→";
   const rhs = document.createElement("div");
   rhs.className = "production-rhs";
+  const expression = document.createElement("div");
+  expression.className = "production-expression";
+  const hint = document.createElement("div");
+  hint.className = "production-hint";
+  const hintCopy = document.createElement("span");
+  hintCopy.textContent = productionHints[name][index];
+  const productionLevel = highestProductionLevel(name, production);
+  const levelBadge = document.createElement("span");
+  levelBadge.className = "production-level level-" + productionLevel.toLowerCase();
+  levelBadge.textContent = "最高 " + productionLevel;
+  levelBadge.setAttribute("aria-label", "此产生式直接包含的最高难度为 " + productionLevel + " 级");
+  hint.append(hintCopy, levelBadge);
 
   tokenise(production).forEach(function (token) {
     if (grammar[token]) {
@@ -526,7 +647,10 @@ function renderProduction(name, production) {
       button.type = "button";
       button.className = "grammar-token";
       button.textContent = token;
+      button.dataset.node = token;
+      button.dataset.tooltip = grammar[token].zh + " · 点击展开";
       button.setAttribute("aria-label", "打开 " + token + "：" + grammar[token].zh);
+      updateGrammarTokenCompletion(button, token);
       button.addEventListener("click", function () { navigate(token); });
       rhs.append(button);
     } else {
@@ -537,7 +661,8 @@ function renderProduction(name, production) {
     }
   });
 
-  row.append(lhs, arrow, rhs);
+  expression.append(rhs, hint);
+  row.append(lhs, arrow, expression);
   return row;
 }
 
@@ -691,8 +816,8 @@ function render() {
   els.level.append(levelCode, levelText);
 
   els.productions.innerHTML = "";
-  item.productions.forEach(function (production) {
-    els.productions.append(renderProduction(current, production));
+  item.productions.forEach(function (production, index) {
+    els.productions.append(renderProduction(current, production, index));
   });
 
   els.summary.textContent = item.summary;
@@ -704,12 +829,19 @@ function render() {
     const label = document.createElement("label");
     const checkbox = document.createElement("input");
     const copy = document.createElement("span");
+    const requirementText = document.createElement("span");
+    const recommendation = document.createElement("small");
     const key = progressKey(current, index);
 
     checkbox.type = "checkbox";
     checkbox.checked = Boolean(progressState[key]);
     checkbox.setAttribute("aria-label", current + "：" + text);
-    copy.textContent = text;
+    copy.className = "requirement-copy";
+    requirementText.className = "requirement-text";
+    requirementText.textContent = text;
+    recommendation.className = "requirement-test";
+    recommendation.textContent = "建议 " + suggestedTest(current, text, index);
+    copy.append(requirementText, recommendation);
     li.classList.toggle("done", checkbox.checked);
 
     checkbox.addEventListener("change", function () {
@@ -722,6 +854,7 @@ function render() {
       saveProgress();
       renderProgress();
       renderTree(els.search.value);
+      refreshGrammarTokenCompletion();
     });
 
     label.append(checkbox, copy);
@@ -733,13 +866,6 @@ function render() {
     const li = document.createElement("li");
     li.textContent = text;
     els.constraints.append(li);
-  });
-  els.coverage.innerHTML = "";
-  item.coverage.forEach(function (text) {
-    const chip = document.createElement("span");
-    chip.className = "coverage-chip";
-    chip.textContent = text;
-    els.coverage.append(chip);
   });
 
   renderBreadcrumb();
