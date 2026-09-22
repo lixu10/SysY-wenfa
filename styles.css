@@ -88,8 +88,14 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--focus); out
 .progress-track { height: 6px; margin: 10px 0; overflow: hidden; background: #071c30; border-radius: 999px; }
 .progress-track span { display: block; width: 0; height: 100%; background: linear-gradient(90deg, #26bfd2, #57d7ad); transition: width .25s ease; }
 .progress-panel p { margin: 0; color: #8fa9bc; font-size: .7rem; line-height: 1.45; }
-.reset-progress { margin-top: 9px; padding: 0; border: 0; background: transparent; color: #9eb5c7; font-size: .7rem; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
-.reset-progress:hover { color: #fff; }
+.progress-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
+.progress-actions button, .import-progress { display: grid; place-items: center; min-height: 29px; padding: 5px 7px; border: 1px solid #466680; background: #173a55; color: #d9e7f1; border-radius: 4px; font-size: .7rem; line-height: 1.2; cursor: pointer; }
+.progress-actions button:hover, .import-progress:hover { border-color: #65c8d3; background: #1b4867; color: #fff; }
+.progress-actions button:focus-visible, .import-progress:focus-within { outline: 2px solid #65c8d3; outline-offset: 2px; }
+.import-progress input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+.progress-actions .reset-progress { grid-column: 1 / -1; border-color: transparent; background: transparent; color: #9eb5c7; text-decoration: underline; text-underline-offset: 3px; }
+.progress-actions .reset-progress:hover { background: transparent; color: #fff; }
+.progress-status:not(:empty) { margin-top: 8px; color: #77dfbd; }
 
 .tree-group { margin-top: 18px; }
 .tree-group h2 { margin: 0 8px 8px; color: #8fa7bd; font-size: .78rem; font-weight: 700; }
@@ -290,7 +296,10 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--focus); out
 .must-cover li label { display: grid; grid-template-columns: 19px 1fr; gap: 9px; align-items: start; padding: 9px 10px; cursor: pointer; }
 .must-cover input { width: 17px; height: 17px; margin: 1px 0 0; accent-color: var(--cyan); cursor: pointer; }
 .requirement-copy { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: start; }
-.requirement-test { padding: 2px 6px; border: 1px solid #9bc9d0; background: #fff; color: #32727b; border-radius: 999px; font-size: .68rem; font-weight: 750; line-height: 1.35; white-space: nowrap; }
+.requirement-level { padding: 2px 7px; border: 1px solid currentColor; background: #fff; border-radius: 999px; font-size: .68rem; font-weight: 800; line-height: 1.35; white-space: nowrap; }
+.requirement-level.level-c { color: #198b99; }
+.requirement-level.level-b { color: #b87913; }
+.requirement-level.level-a { color: #7150ba; }
 .must-cover li.done { border-color: #8bcbb0; background: #edf8f2; color: #2d6d53; }
 .must-cover li.done .requirement-text { text-decoration: line-through; text-decoration-thickness: 1px; text-decoration-color: #81ad99; }
 .watchout { border-left: 4px solid var(--amber); padding-left: 14px !important; }

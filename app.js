@@ -499,6 +499,9 @@ const els = {
   progressTrack: document.querySelector("#progressTrack"),
   progressFill: document.querySelector("#progressFill"),
   progressHint: document.querySelector("#progressHint"),
+  progressStatus: document.querySelector("#progressStatus"),
+  exportProgress: document.querySelector("#exportProgress"),
+  importProgress: document.querySelector("#importProgress"),
   resetProgress: document.querySelector("#resetProgress")
 };
 
@@ -542,18 +545,79 @@ function renderProgress() {
   els.currentProgress.textContent = currentDone + " / " + coverageRequirements[current].length + " 已完成";
 }
 
-function suggestedTest(name, text, index) {
-  const lower = (name + " " + text).toLowerCase();
+function requirementLevel(name, text, index) {
+  if (name === "LAndExp" || name === "LOrExp") return index > 0 ? "A" : "C";
+  if (/短路|&&|\|\|/.test(text)) return "A";
 
-  if (/mainfuncdef|唯一的 main|main 位于/.test(lower)) return "testfile1-6";
-  if (grammar[name].level === "A" || /短路|&&|\|\|/.test(text)) return "testfile5-6";
-  if (/printf 只有 StringConst/.test(text)) return "testfile1";
-  if (/数组|一维|\[\]|ident\[exp\]/i.test(text)) return "testfile3";
-  if (/char|stringconst|switch|case|default|%c|%s|ascii|显式类型转换/i.test(lower)) return "testfile4";
-  if (grammar[name].level === "B") return "testfile3-4";
-  if (/static|至少 3|多个|多位|后续包含/.test(text)) return "testfile2";
-  if (/完全不出现|空语句|空表达式|空语句块|无形参|省略|不带 else|无初值|不出现/.test(text)) return "testfile1";
-  return index % 2 === 0 ? "testfile1" : "testfile2";
+  if (name === "StringConst") return index >= 3 ? "B" : "C";
+  if (name === "CharConst" || name === "CaseStmt") return "B";
+  if (
+    /数组|一维|\[\]|Ident\[Exp\]|char|CharConst|StringConst|switch|case|default|%c|%s|ASCII|显式类型转换/i.test(text)
+  ) {
+    return "B";
+  }
+  return "C";
+}
+
+function validProgressKeys() {
+  const keys = new Set();
+  Object.keys(coverageRequirements).forEach(function (name) {
+    coverageRequirements[name].forEach(function (_, index) {
+      keys.add(progressKey(name, index));
+    });
+  });
+  return keys;
+}
+
+function exportProgressState() {
+  const validKeys = validProgressKeys();
+  const checked = Object.keys(progressState).filter(function (key) {
+    return progressState[key] && validKeys.has(key);
+  });
+  const payload = {
+    format: "sysy-grammar-progress",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    checked: checked
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "sysy-grammar-progress-" + new Date().toISOString().slice(0, 10) + ".json";
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  els.progressStatus.textContent = "已导出 " + checked.length + " 项完成状态。";
+}
+
+async function importProgressState(file) {
+  try {
+    const payload = JSON.parse(await file.text());
+    if (
+      !payload ||
+      payload.format !== "sysy-grammar-progress" ||
+      payload.version !== 1 ||
+      !Array.isArray(payload.checked)
+    ) {
+      throw new Error("文件格式不正确");
+    }
+
+    const validKeys = validProgressKeys();
+    const nextState = {};
+    payload.checked.forEach(function (key) {
+      if (typeof key === "string" && validKeys.has(key)) nextState[key] = true;
+    });
+    progressState = nextState;
+    saveProgress();
+    render();
+    els.progressStatus.textContent = "导入成功：恢复了 " + Object.keys(nextState).length + " 项。";
+  } catch (error) {
+    els.progressStatus.textContent = "导入失败：请选择由本页面导出的 JSON 状态文件。";
+  } finally {
+    els.importProgress.value = "";
+  }
 }
 
 function tokenise(text) {
@@ -830,7 +894,7 @@ function render() {
     const checkbox = document.createElement("input");
     const copy = document.createElement("span");
     const requirementText = document.createElement("span");
-    const recommendation = document.createElement("small");
+    const requirementBadge = document.createElement("small");
     const key = progressKey(current, index);
 
     checkbox.type = "checkbox";
@@ -839,9 +903,11 @@ function render() {
     copy.className = "requirement-copy";
     requirementText.className = "requirement-text";
     requirementText.textContent = text;
-    recommendation.className = "requirement-test";
-    recommendation.textContent = "建议 " + suggestedTest(current, text, index);
-    copy.append(requirementText, recommendation);
+    const itemLevel = requirementLevel(current, text, index);
+    requirementBadge.className = "requirement-level level-" + itemLevel.toLowerCase();
+    requirementBadge.textContent = "最高 " + itemLevel;
+    requirementBadge.setAttribute("aria-label", "完成此项需要覆盖到的最高难度为 " + itemLevel + " 级");
+    copy.append(requirementText, requirementBadge);
     li.classList.toggle("done", checkbox.checked);
 
     checkbox.addEventListener("change", function () {
@@ -905,6 +971,13 @@ els.mobileNav.addEventListener("click", function () {
   els.mobileNav.setAttribute("aria-expanded", String(open));
 });
 
+els.exportProgress.addEventListener("click", exportProgressState);
+
+els.importProgress.addEventListener("change", function () {
+  const file = els.importProgress.files && els.importProgress.files[0];
+  if (file) importProgressState(file);
+});
+
 els.resetProgress.addEventListener("click", function () {
   const confirmed = window.confirm("确定清空全部文法覆盖勾选吗？此操作只影响当前浏览器中的学习进度。");
   if (!confirmed) return;
@@ -915,6 +988,7 @@ els.resetProgress.addEventListener("click", function () {
     // 即使浏览器禁用存储，也仍然清空当前页面的状态。
   }
   render();
+  els.progressStatus.textContent = "进度已清空。";
 });
 
 window.addEventListener("popstate", function () {

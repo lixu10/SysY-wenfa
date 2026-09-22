@@ -44,7 +44,15 @@
           <span id="progressFill"></span>
         </div>
         <p id="progressHint">默认全部未完成，勾选后自动保存在本浏览器。</p>
-        <button class="reset-progress" id="resetProgress" type="button">清空进度</button>
+        <div class="progress-actions">
+          <button id="exportProgress" type="button">导出状态</button>
+          <label class="import-progress">
+            导入状态
+            <input id="importProgress" type="file" accept=".json,application/json">
+          </label>
+          <button class="reset-progress" id="resetProgress" type="button">清空进度</button>
+        </div>
+        <p class="progress-status" id="progressStatus" role="status" aria-live="polite"></p>
       </section>
       <nav id="treeNav" aria-label="文法层级"></nav>
     </aside>
@@ -100,7 +108,7 @@
           <h2>本规则必须覆盖哪些情况</h2>
           <span id="currentProgress">0 / 0 已完成</span>
         </div>
-        <p class="must-cover-note">按 C＝1/2、B＝3/4、A＝5/6 推荐；只是规划建议，可按程序结构调整。</p>
+        <p class="must-cover-note">右侧标签表示完成该项所需覆盖到的最高难度层级。</p>
         <ul id="mustCover"></ul>
       </section>
       <section class="watchout">
