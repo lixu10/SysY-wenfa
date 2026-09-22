@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="交互式 SysY 文法地图：逐层展开产生式，对照英文名、中文名、代码例子和语义约束。">
+  <title>SysY 文法地图</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23122b48'/%3E%3Cpath d='M18 17h12v7h-5v16h5v7H18V17Zm28 0H34v7h5v16h-5v7h12V17Z' fill='%2328bfd2'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand" aria-label="SysY 文法地图">
+      <span class="brand-mark" aria-hidden="true">{ }</span>
+      <span><strong>SysY 文法地图</strong><small>2026 编译技术实验</small></span>
+    </div>
+    <label class="search-shell">
+      <span aria-hidden="true">⌕</span>
+      <input id="searchInput" type="search" placeholder="搜索 CompUnit、变量声明、数组……" autocomplete="off">
+      <kbd>/</kbd>
+    </label>
+    <button class="mobile-nav" id="mobileNav" type="button" aria-expanded="false" aria-controls="sidebar">目录</button>
+  </header>
+
+  <main class="workspace">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-intro">
+        <span class="section-label">从这里开始</span>
+        <p>点击节点查看产生式，再点击产生式里的蓝色名称继续下钻。</p>
+      </div>
+      <div class="level-filter" id="levelFilter" aria-label="按难度筛选">
+        <button type="button" class="active" data-level="ALL">全部</button>
+        <button type="button" data-level="C">C 基础</button>
+        <button type="button" data-level="B">B 新增</button>
+        <button type="button" data-level="A">A 短路</button>
+      </div>
+      <p class="node-count" id="nodeCount"></p>
+      <section class="progress-panel" aria-labelledby="progressTitle">
+        <div class="progress-heading">
+          <h2 id="progressTitle">覆盖进度</h2>
+          <strong id="overallProgress">0 / 0</strong>
+        </div>
+        <div class="progress-track" id="progressTrack" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <span id="progressFill"></span>
+        </div>
+        <p id="progressHint">默认全部未完成，勾选后自动保存在本浏览器。</p>
+        <button class="reset-progress" id="resetProgress" type="button">清空进度</button>
+      </section>
+      <nav id="treeNav" aria-label="文法层级"></nav>
+    </aside>
+
+    <section class="stage" aria-live="polite">
+      <div class="breadcrumb" id="breadcrumb"></div>
+      <div class="stage-heading">
+        <div>
+          <span class="category-pill" id="categoryPill">程序结构</span>
+          <h1><span id="nodeEnglish">CompUnit</span><small id="nodeChinese">编译单元</small></h1>
+        </div>
+        <div class="level-badge" id="levelBadge"><strong>C</strong><span>基础级</span></div>
+      </div>
+
+      <section class="production-board" aria-labelledby="productionTitle">
+        <div class="board-header">
+          <h2 id="productionTitle">产生式</h2>
+          <span>蓝色名称可继续展开</span>
+        </div>
+        <div id="productions"></div>
+      </section>
+
+      <section class="child-section" id="childSection" aria-labelledby="childTitle">
+        <div class="child-heading">
+          <h2 id="childTitle">下一层可以看什么</h2>
+          <span>按阅读顺序排列</span>
+        </div>
+        <div class="child-grid" id="childGrid"></div>
+      </section>
+
+      <section class="symbol-legend" aria-label="EBNF 符号图例">
+        <div><code>[ X ]</code><span>可选：可以有，也可以没有</span></div>
+        <div><code>{ X }</code><span>重复：可以出现 0 次或多次</span></div>
+        <div><code>A | B</code><span>候选：A、B 选择其中一种</span></div>
+      </section>
+    </section>
+
+    <aside class="inspector">
+      <section>
+        <span class="section-label">一句话理解</span>
+        <p class="plain-summary" id="plainSummary"></p>
+      </section>
+      <section>
+        <h2>为什么要认识它</h2>
+        <p id="whyItMatters"></p>
+      </section>
+      <section>
+        <h2>合法例子</h2>
+        <pre><code id="codeExample"></code></pre>
+      </section>
+      <section class="must-cover">
+        <div class="must-cover-heading">
+          <h2>本规则必须覆盖哪些情况</h2>
+          <span id="currentProgress">0 / 0 已完成</span>
+        </div>
+        <ul id="mustCover"></ul>
+      </section>
+      <section class="watchout">
+        <h2>语义限制与易错点</h2>
+        <ul id="constraints"></ul>
+      </section>
+      <section>
+        <h2>这 6 个测试在哪里覆盖</h2>
+        <div class="coverage-row" id="coverage"></div>
+      </section>
+    </aside>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
